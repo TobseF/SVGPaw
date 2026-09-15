@@ -10,6 +10,7 @@
 #   - patchelf: Nucleus' fixGraalvmRpath step rewrites the binary's RPATH with it
 #   - Node.js 20: Nucleus provisions electron-builder through npm for packaging
 #   - fakeroot: electron-builder needs it to stage the .deb without root
+#   - libfuse2: needed by electron-builder / appimagetool for .AppImage packaging
 FROM eclipse-temurin:21-jdk-jammy
 
 RUN apt-get update \
@@ -18,6 +19,7 @@ RUN apt-get update \
       patchelf \
       ca-certificates curl gnupg \
       fakeroot \
+      libfuse2 \
  && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*

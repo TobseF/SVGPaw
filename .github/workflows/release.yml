@@ -32,7 +32,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            tasks: ':desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb'
+            tasks: ':desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb :desktopApp:packageGraalvmAppImage'
           - os: windows-latest
             tasks: ':desktopApp:packageGraalvmZip :desktopApp:packageGraalvmMsi'
           - os: macos-latest
@@ -46,7 +46,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y patchelf fakeroot
+          sudo apt-get install -y patchelf fakeroot libfuse2 || sudo apt-get install -y patchelf fakeroot libfuse2t64 || sudo apt-get install -y patchelf fakeroot
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          find desktopApp/build/compose/binaries/main -maxdepth 2 -type f \( -name "*.zip" -o -name "*.msi" -o -name "*.deb" -o -name "*.dmg" \) -exec cp -v {} dist/ \;
+          find desktopApp/build/compose/binaries/main -maxdepth 2 -type f \( -name "*.zip" -o -name "*.msi" -o -name "*.deb" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.appimage" \) -exec cp -v {} dist/ \;
 
       - name: Upload build artefacts
         uses: actions/upload-artifact@v4

@@ -73,7 +73,7 @@ and a portable archive you can just unzip and run:
 | Platform | Installer | Portable |
 | --- | --- | --- |
 | Windows | `svgpaw-<version>-win-x64.msi` | `svgpaw-<version>-win-x64.zip` |
-| Linux | `svgpaw_<version>_amd64.deb` | `svgpaw-<version>-linux-x64.zip` |
+| Linux | `svgpaw_<version>_amd64.deb` | `svgpaw-<version>-linux-x64.AppImage`, `svgpaw-<version>-linux-x64.zip` |
 | macOS | `svgpaw-<version>-mac-arm64.dmg` | — |
 
 > [!NOTE]
@@ -205,7 +205,7 @@ removing the viewBox breaks responsive scaling, and `<title>` is the image's
 accessible name), and `removeDeprecatedAttrs` is **on**. Every one of them is a
 single switch away.
 
-The seven categories in the features column are a **display grouping only**.
+The seven categories in the features column are a **display grouping only**.\
 Plugins always run in SVGO's own order, which is the order of the catalogue in
 [PluginCatalog.kt](shared/src/commonMain/kotlin/io/github/tobsef/svgokt/engine/PluginCatalog.kt)
 — regrouping the UI never changes the output.
@@ -293,7 +293,7 @@ built and packaged across all platforms (Windows, Linux, macOS) via GitHub Actio
 | --- | --- |
 | Running from source (JVM) | A JDK 17+ (any vendor) |
 | Native build — Windows | The **MSVC C/C++ build tools** (Visual Studio Build Tools → "Desktop development with C++") and **Node.js 18+** (Nucleus packages the installer/zip with electron-builder) |
-| Native build — Linux | `build-essential`, `zlib1g-dev`, `fakeroot`, **Node.js 18+** — or just **Docker** (see below) |
+| Native build — Linux | `build-essential`, `zlib1g-dev`, `fakeroot`, `libfuse2`, **Node.js 18+** — or just **Docker** (see below) |
 | Cross-building Linux from Windows/macOS | **Docker** |
 
 > **`GRAALVM_HOME` gotcha.** If that environment variable points at some other
@@ -307,7 +307,7 @@ built and packaged across all platforms (Windows, Linux, macOS) via GitHub Actio
 scripts/build-all.sh
 ```
 
-builds — for **both** Windows and Linux — a portable ZIP and a native installer,
+builds — for **both** Windows and Linux — portable packages and native installers,
 and collects them in `dist/`:
 
 | Artefact | What it is |
@@ -316,6 +316,7 @@ and collects them in `dist/`:
 | `svgpaw-<ver>-win-x64.msi` | Windows installer |
 | `svgpaw-<ver>-linux-x64.zip` | Portable Linux build — unpack and run `SVGPaw`, no install |
 | `svgpaw_<ver>_amd64.deb` | Linux installer |
+| `svgpaw-<ver>-linux-x64.AppImage` | Linux portable AppImage |
 
 A native image **cannot be cross-compiled**, so each OS is built on its own: the
 Windows artefacts natively on the host, the Linux ones inside a container from
@@ -330,22 +331,23 @@ takes a few minutes.
 ./gradlew :desktopApp:packageGraalvmZip
 
 # Native installer for the current OS
-./gradlew :desktopApp:packageGraalvmMsi     # Windows
-./gradlew :desktopApp:packageGraalvmDeb     # Linux
-./gradlew :desktopApp:packageGraalvmDmg     # macOS
+./gradlew :desktopApp:packageGraalvmMsi      # Windows (.msi)
+./gradlew :desktopApp:packageGraalvmDeb      # Linux (.deb)
+./gradlew :desktopApp:packageGraalvmAppImage # Linux (.AppImage)
+./gradlew :desktopApp:packageGraalvmDmg      # macOS (.dmg)
 
 # Just the self-contained native folder (no archive, no installer)
 ./gradlew :desktopApp:createGraalvmNativeDistributable
 ```
 
 Everything lands in `desktopApp/build/compose/binaries/main/`. Only the formats
-listed in `nativeDistributions.targetFormats` (`Zip`, `Msi`, `Deb`, `Dmg`) that the host
+listed in `nativeDistributions.targetFormats` (`Zip`, `Msi`, `Deb`, `AppImage`, `Dmg`) that the host
 OS supports are built.
 
 ### A note on size
 
 A Compose/Skia native image is inherently large: the self-contained folder is
-~165 MB (the `-Os`-optimized binary ~120 MB, plus Skia, ICU and the C runtime).
+~165 MB (the `-Os`-optimized binary ~120 MB, plus Skia, ICU and the C runtime).\
 The **installers and ZIPs compress that to ~50–60 MB**, which is the figure that
 matters for distribution. `-Os` (`optimization = SIZE`) is set in
 [`desktopApp/build.gradle.kts`](desktopApp/build.gradle.kts); UPX is deliberately

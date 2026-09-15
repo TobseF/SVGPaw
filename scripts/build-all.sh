@@ -2,10 +2,11 @@
 #
 # Build every SVGPaw desktop artefact in one go and collect them in ./dist:
 #
-#   dist/svgpaw-<ver>-win-x64.zip     portable Windows build (unzip and run, no installer)
-#   dist/svgpaw-<ver>-win-x64.msi     Windows installer
-#   dist/svgpaw-<ver>-linux-x64.zip   portable Linux build (unpack and run, no installer)
-#   dist/svgpaw_<ver>_amd64.deb       Linux installer
+#   dist/svgpaw-<ver>-win-x64.zip        portable Windows build (unzip and run, no installer)
+#   dist/svgpaw-<ver>-win-x64.msi        Windows installer
+#   dist/svgpaw-<ver>-linux-x64.zip      portable Linux build (unpack and run, no installer)
+#   dist/svgpaw_<ver>_amd64.deb          Linux installer
+#   dist/svgpaw-<ver>-linux-x64.AppImage Linux portable AppImage
 #
 # NOTE: Official releases are built and published automatically via GitHub Actions
 # (.github/workflows/release.yml). This script remains the local test and fallback build path.
@@ -41,7 +42,7 @@ case "$(uname -s)" in
 esac
 
 collect() { # <glob-dir> <ext>
-  find "$1" -maxdepth 1 -type f -name "*.$2" -exec cp -v {} "$DIST/" \; 2>/dev/null || true
+  find "$1" -maxdepth 1 -type f -iname "*.$2" -exec cp -v {} "$DIST/" \; 2>/dev/null || true
 }
 
 build_windows_native() {
@@ -52,14 +53,15 @@ build_windows_native() {
 }
 
 build_linux_native() {
-  echo "==> Linux: portable ZIP + DEB (native, on host)"
-  "$GRADLE" :desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb
+  echo "==> Linux: portable ZIP + DEB + AppImage (native, on host)"
+  "$GRADLE" :desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb :desktopApp:packageGraalvmAppImage
   collect "$BIN/graalvm-zip" zip
   collect "$BIN/graalvm-deb" deb
+  collect "$BIN/graalvm-appimage" AppImage
 }
 
 build_linux_docker() {
-  echo "==> Linux: portable ZIP + DEB (in Docker)"
+  echo "==> Linux: portable ZIP + DEB + AppImage (in Docker)"
   if ! docker info >/dev/null 2>&1; then
     echo "!! Docker is not available/running — skipping the Linux artefacts." >&2
     echo "!! Start Docker Desktop (or run this script on Linux) and re-run." >&2
@@ -83,9 +85,10 @@ build_linux_docker() {
     -v "$mount_src":/work -w /work \
     -v svgpaw-gradle-cache:/root/.gradle \
     svgpaw-linux-build \
-    bash -lc 'sh ./gradlew --no-configuration-cache --project-cache-dir=.gradle-linux :desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb'
+    bash -lc 'sh ./gradlew --no-configuration-cache --project-cache-dir=.gradle-linux :desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb :desktopApp:packageGraalvmAppImage'
   collect "$BIN/graalvm-zip" zip
   collect "$BIN/graalvm-deb" deb
+  collect "$BIN/graalvm-appimage" AppImage
 }
 
 echo "Host OS: $HOST"

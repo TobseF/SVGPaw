@@ -53,7 +53,7 @@ nucleus.application {
         // Deb = Linux installer; Dmg = macOS installer. Nucleus only builds the formats the host
         // OS actually supports, so the same list yields Zip+Msi on Windows, Zip+Deb on Linux,
         // and Dmg on macOS.
-        targetFormats(TargetFormat.Zip, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
+        targetFormats(TargetFormat.Zip, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg, TargetFormat.AppImage)
         packageName = "SVGPaw"
         packageVersion = (project.findProperty("appVersion") as String?) ?: "1.0.0"
         description = "Minimize your SVG footprint"
