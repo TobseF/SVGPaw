@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App version to build'
+        required: false
+        default: '1.0.0'
+        type: string
+      create_release:
+        description: 'Also create a GitHub Release (Draft)?'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            tasks: ':desktopApp:packageGraalvmZip :desktopApp:packageGraalvmDeb'
+          - os: windows-latest
+            tasks: ':desktopApp:packageGraalvmZip :desktopApp:packageGraalvmMsi'
+          - os: macos-latest
+            tasks: ':desktopApp:packageGraalvmDmg'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf fakeroot
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Nucleus GraalVM toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/nucleus
+          key: nucleus-graalvm-${{ runner.os }}-${{ hashFiles('desktopApp/build.gradle.kts') }}
+          restore-keys: |
+            nucleus-graalvm-${{ runner.os }}-
+
+      - name: Build desktop artefacts
+        shell: bash
+        env:
+          GRAALVM_HOME: ""
+        run: |
+          chmod +x ./gradlew
+          APP_VERSION="1.0.0"
+          if [ -n "${{ inputs.version }}" ]; then
+            APP_VERSION="${{ inputs.version }}"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            APP_VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          ./gradlew ${{ matrix.tasks }} "-PappVersion=$APP_VERSION" -PhostTargetsOnly=false --no-daemon
+
+      - name: Collect artefacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          find desktopApp/build/compose/binaries/main -maxdepth 2 -type f \( -name "*.zip" -o -name "*.msi" -o -name "*.deb" -o -name "*.dmg" \) -exec cp -v {} dist/ \;
+
+      - name: Upload build artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artefacts-${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.create_release == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Determine tag name
+        id: tag_info
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v${{ inputs.version || '1.0.0' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+          draft: ${{ inputs.create_release == true && github.ref_type != 'tag' }}
+          files: dist/*
+          generate_release_notes: true

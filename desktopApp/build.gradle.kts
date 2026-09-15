@@ -49,15 +49,19 @@ nucleus.application {
     }
     nativeDistributions {
         // Zip = portable archive (runs without an installer) on every OS; Msi = Windows installer;
-        // Deb = Linux installer. Nucleus only builds the formats the host OS actually supports, so
-        // the same list yields Zip+Msi on Windows and Zip+Deb inside the Linux build container.
-        targetFormats(TargetFormat.Zip, TargetFormat.Msi, TargetFormat.Deb)
+        // Deb = Linux installer; Dmg = macOS installer. Nucleus only builds the formats the host
+        // OS actually supports, so the same list yields Zip+Msi on Windows, Zip+Deb on Linux,
+        // and Dmg on macOS.
+        targetFormats(TargetFormat.Zip, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
         packageName = "SVGPaw"
-        packageVersion = "1.0.0"
+        packageVersion = (project.findProperty("appVersion") as String?) ?: "1.0.0"
         description = "Minimize your SVG footprint"
         vendor = "Tobse"
         homepage = "https://github.com/tobsef/SVGPaw"
 
+        macOS {
+            iconFile.set(project.file("icons/icon.icns"))
+        }
         windows {
             // jpackage wants a real .ico; the runtime icon is rendered from icon.svg instead.
             iconFile.set(project.file("icons/icon.ico"))

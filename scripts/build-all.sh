@@ -7,6 +7,9 @@
 #   dist/svgpaw-<ver>-linux-x64.zip   portable Linux build (unpack and run, no installer)
 #   dist/svgpaw_<ver>_amd64.deb       Linux installer
 #
+# NOTE: Official releases are built and published automatically via GitHub Actions
+# (.github/workflows/release.yml). This script remains the local test and fallback build path.
+#
 # A GraalVM native image cannot cross-compile, so each OS is built on its own:
 #   - the host OS (Windows here) is built natively with ./gradlew
 #   - Linux is built inside a Docker container (docker/linux-build.Dockerfile)

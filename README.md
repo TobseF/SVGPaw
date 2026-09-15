@@ -74,6 +74,13 @@ and a portable archive you can just unzip and run:
 | --- | --- | --- |
 | Windows | `svgpaw-<version>-win-x64.msi` | `svgpaw-<version>-win-x64.zip` |
 | Linux | `svgpaw_<version>_amd64.deb` | `svgpaw-<version>-linux-x64.zip` |
+| macOS | `svgpaw-<version>-mac-arm64.dmg` | — |
+
+> [!NOTE]
+> **Signature warning on first run:**
+> Pre-built binaries are not code-signed with a paid developer certificate yet:
+> - **Windows:** SmartScreen will show a warning. Click **"More info"** (*Weitere Informationen*) → **"Run anyway"** (*Trotzdem ausführen*).
+> - **macOS:** Gatekeeper may block the app on first open. Open **System Settings** (*Systemeinstellungen*) → **Privacy & Security** (*Datenschutz & Sicherheit*) → scroll down and click **"Open Anyway"** (*Trotzdem öffnen*).
 
 Building these yourself is covered in [Building](#building).
 
@@ -277,7 +284,8 @@ The desktop app is built with **[Nucleus](https://nucleusframework.dev)** on top
 of Compose Multiplatform and ships as a **GraalVM native image** — a standalone
 binary that needs no JVM on the target machine. Nucleus downloads the matching
 **GraalVM CE 25** toolchain itself on the first native build (cached in your
-Gradle home); you never install GraalVM by hand.
+Gradle home); you never install GraalVM by hand. Official release builds are
+built and packaged across all platforms (Windows, Linux, macOS) via GitHub Actions.
 
 ### Prerequisites
 
@@ -293,7 +301,7 @@ Gradle home); you never install GraalVM by hand.
 > `Could not find option 'SharedArenaSupport'`. `scripts/build-all.sh` clears it
 > for you; if you call Gradle directly, `unset GRAALVM_HOME` first.
 
-### One command for everything
+### One command for local builds
 
 ```bash
 scripts/build-all.sh
@@ -324,13 +332,14 @@ takes a few minutes.
 # Native installer for the current OS
 ./gradlew :desktopApp:packageGraalvmMsi     # Windows
 ./gradlew :desktopApp:packageGraalvmDeb     # Linux
+./gradlew :desktopApp:packageGraalvmDmg     # macOS
 
 # Just the self-contained native folder (no archive, no installer)
 ./gradlew :desktopApp:createGraalvmNativeDistributable
 ```
 
 Everything lands in `desktopApp/build/compose/binaries/main/`. Only the formats
-listed in `nativeDistributions.targetFormats` (`Zip`, `Msi`, `Deb`) that the host
+listed in `nativeDistributions.targetFormats` (`Zip`, `Msi`, `Deb`, `Dmg`) that the host
 OS supports are built.
 
 ### A note on size
