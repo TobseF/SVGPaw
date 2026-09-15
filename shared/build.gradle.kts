@@ -64,6 +64,12 @@ kotlin {
         // Everything above it talks to `SvgoEngine`, whose non-JVM actuals are stubs for now.
         jvmMain.dependencies {
             api(libs.svgo.kt)
+            // Native OS file dialogs without AWT/Swing (open/save/directory), so the desktop build
+            // stays compatible with Nucleus' Tao backend and the GraalVM native image.
+            implementation(libs.filekit.dialogs.compose)
+            // Tao routes native file drops into Compose; TaoDragAndDropPayload carries the paths
+            // without touching AWT's DataFlavor.
+            implementation(libs.nucleus.decoratedWindowTao)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

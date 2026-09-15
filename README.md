@@ -66,15 +66,14 @@ one documented here and the one that ships first.
 
 ### From a packaged build
 
-The desktop app is packaged with Compose Desktop's `jpackage` integration, so
-each platform gets its native installer and no Java installation is required on
-the target machine:
+The desktop app ships as a **GraalVM native image**, so it runs without any Java
+installation on the target machine. Each platform gets both a native installer
+and a portable archive you can just unzip and run:
 
-| Platform | Artefact |
-| --- | --- |
-| Windows | `SVGPaw-<version>.msi` |
-| macOS | `SVGPaw-<version>.dmg` |
-| Linux | `svgpaw_<version>.deb` |
+| Platform | Installer | Portable |
+| --- | --- | --- |
+| Windows | `svgpaw-<version>-win-x64.msi` | `svgpaw-<version>-win-x64.zip` |
+| Linux | `svgpaw_<version>_amd64.deb` | `svgpaw-<version>-linux-x64.zip` |
 
 Building these yourself is covered in [Building](#building).
 
@@ -84,9 +83,11 @@ Any platform a JDK 17+ runs on. See [Running from source](#running-from-source).
 
 ## Requirements
 
-- **JDK 17 or newer** to build and run from source (the packaged builds bundle
-  their own runtime).
-- No Node.js, no JavaScript runtime — `svgo-kt` is pure Kotlin.
+- **JDK 17 or newer** to run from source (the packaged native builds bundle no
+  runtime at all — they *are* the runtime).
+- The app itself needs no Node.js or JavaScript runtime — `svgo-kt` is pure
+  Kotlin. (Producing the native installers/zips does use Node.js and a C
+  toolchain; see [Building](#building).)
 
 The preview is rendered with **Skia** (via [Skiko](https://github.com/JetBrains/skiko)),
 the same renderer Compose itself draws with, so what you see on screen matches
@@ -253,11 +254,13 @@ SVGPaw/
 │       │   ├── engine/           # plugin catalogue + settings → svgo-kt invocation
 │       │   ├── ui/               # the three columns, dialogs and components
 │       │   └── platform/         # PlatformServices: files, dialogs, rasterization
-│       ├── jvmMain/kotlin/…/     # desktop actuals (Skia rasterizer, Swing dialogs)
+│       ├── jvmMain/kotlin/…/     # desktop actuals (Skia rasterizer, FileKit dialogs, Tao drag&drop)
 │       └── jvmTest/kotlin/…/     # ScreenshotTest — regenerates docs/ screenshots
-├── desktopApp/                   # JVM launcher (window, icons, dark title bar)
+├── desktopApp/                   # Nucleus launcher (DecoratedWindow, TitleBar, GraalVM config)
 ├── androidApp/                   # Android launcher
 ├── webApp/                       # Wasm / JS launcher
+├── docker/                       # linux-build.Dockerfile — Linux native build container
+├── scripts/                      # build-all.sh — builds Win + Linux zip & installer
 ├── sample/                       # three test SVGs
 ├── docs/                         # screenshots and the logo
 └── gradle/                       # version catalogue and wrapper
@@ -270,28 +273,74 @@ dependency (`io.github.tobsef:svgo-kt`); this repository is the front-end for it
 
 ## Building
 
-The desktop distributions are produced by Compose Desktop, which wraps
-`jpackage` — it bundles a trimmed JVM runtime alongside the app, so the target
-machine needs no Java installation. Build for the OS you are on:
+The desktop app is built with **[Nucleus](https://nucleusframework.dev)** on top
+of Compose Multiplatform and ships as a **GraalVM native image** — a standalone
+binary that needs no JVM on the target machine. Nucleus downloads the matching
+**GraalVM CE 25** toolchain itself on the first native build (cached in your
+Gradle home); you never install GraalVM by hand.
+
+### Prerequisites
+
+| For | You need |
+| --- | --- |
+| Running from source (JVM) | A JDK 17+ (any vendor) |
+| Native build — Windows | The **MSVC C/C++ build tools** (Visual Studio Build Tools → "Desktop development with C++") and **Node.js 18+** (Nucleus packages the installer/zip with electron-builder) |
+| Native build — Linux | `build-essential`, `zlib1g-dev`, `fakeroot`, **Node.js 18+** — or just **Docker** (see below) |
+| Cross-building Linux from Windows/macOS | **Docker** |
+
+> **`GRAALVM_HOME` gotcha.** If that environment variable points at some other
+> GraalVM, Nucleus uses it instead of the pinned CE 25 and the build fails with
+> `Could not find option 'SharedArenaSupport'`. `scripts/build-all.sh` clears it
+> for you; if you call Gradle directly, `unset GRAALVM_HOME` first.
+
+### One command for everything
 
 ```bash
-# Native installer for the current OS (.msi on Windows, .dmg on macOS, .deb on Linux)
-./gradlew :desktopApp:packageDistributionForCurrentOS
-
-# Or a specific format
-./gradlew :desktopApp:packageMsi
-./gradlew :desktopApp:packageDeb
-./gradlew :desktopApp:packageDmg
+scripts/build-all.sh
 ```
 
-`jpackage` cannot cross-compile — each installer has to be built on its own
-platform. Everything lands in `desktopApp/build/compose/binaries/`.
+builds — for **both** Windows and Linux — a portable ZIP and a native installer,
+and collects them in `dist/`:
 
-For a quick self-contained app image without an installer:
+| Artefact | What it is |
+| --- | --- |
+| `svgpaw-<ver>-win-x64.zip` | Portable Windows build — unzip and run `SVGPaw.exe`, no install |
+| `svgpaw-<ver>-win-x64.msi` | Windows installer |
+| `svgpaw-<ver>-linux-x64.zip` | Portable Linux build — unpack and run `SVGPaw`, no install |
+| `svgpaw_<ver>_amd64.deb` | Linux installer |
+
+A native image **cannot be cross-compiled**, so each OS is built on its own: the
+Windows artefacts natively on the host, the Linux ones inside a container from
+[`docker/linux-build.Dockerfile`](docker/linux-build.Dockerfile). Start Docker
+Desktop first — the first Linux run downloads the GraalVM Linux toolchain and
+takes a few minutes.
+
+### Individual targets
 
 ```bash
-./gradlew :desktopApp:createDistributable
+# Portable archive for the current OS (runs without an installer)
+./gradlew :desktopApp:packageGraalvmZip
+
+# Native installer for the current OS
+./gradlew :desktopApp:packageGraalvmMsi     # Windows
+./gradlew :desktopApp:packageGraalvmDeb     # Linux
+
+# Just the self-contained native folder (no archive, no installer)
+./gradlew :desktopApp:createGraalvmNativeDistributable
 ```
+
+Everything lands in `desktopApp/build/compose/binaries/main/`. Only the formats
+listed in `nativeDistributions.targetFormats` (`Zip`, `Msi`, `Deb`) that the host
+OS supports are built.
+
+### A note on size
+
+A Compose/Skia native image is inherently large: the self-contained folder is
+~165 MB (the `-Os`-optimized binary ~120 MB, plus Skia, ICU and the C runtime).
+The **installers and ZIPs compress that to ~50–60 MB**, which is the figure that
+matters for distribution. `-Os` (`optimization = SIZE`) is set in
+[`desktopApp/build.gradle.kts`](desktopApp/build.gradle.kts); UPX is deliberately
+**not** used — it corrupts GraalVM native images on Windows (they fail to start).
 
 ### Running tests
 

@@ -3,12 +3,26 @@ package io.github.tobsef.svgokt.platform
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draganddrop.awtTransferable
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import dev.nucleusframework.window.tao.TaoDragAndDropPayload
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.absolutePath
+import io.github.vinceglb.filekit.dialogs.FileKitMode
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openDirectoryPicker
+import io.github.vinceglb.filekit.dialogs.openFilePicker
+import io.github.vinceglb.filekit.dialogs.openFileSaver
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.Surface
@@ -16,20 +30,35 @@ import org.jetbrains.skia.svg.SVGDOM
 import org.jetbrains.skia.svg.SVGLengthUnit
 import org.jetbrains.skia.svg.SVGPreserveAspectRatio
 import org.jetbrains.skia.svg.SVGPreserveAspectRatioAlign
-import java.awt.Toolkit
-import java.awt.datatransfer.DataFlavor
-import java.awt.datatransfer.StringSelection
 import java.io.File
 import java.util.zip.GZIPInputStream
-import javax.swing.JFileChooser
-import javax.swing.JOptionPane
-import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.math.roundToInt
 
 private const val CONFIG_DIR = ".svgpaw"
 private const val CONFIG_FILE = "config.json"
 
-/** Desktop (JVM) host: real files, Swing dialogs, Skia rasterization, AWT drag & drop. */
+/**
+ * A yes/no or acknowledge dialog the desktop UI must draw itself.
+ *
+ * Nucleus' Tao backend has no AWT, so there is no JOptionPane to lean on. The model still calls
+ * [PlatformServices.confirm]/[PlatformServices.alert] as plain suspend functions; each parks on its
+ * [answer] until [DesktopDialogHost] — mounted at the app root — resolves it from a Compose
+ * `AlertDialog`.
+ */
+internal sealed interface DialogRequest {
+    val title: String
+    val message: String
+
+    data class Confirm(override val title: String, override val message: String) : DialogRequest {
+        val answer = CompletableDeferred<Boolean>()
+    }
+
+    data class Alert(override val title: String, override val message: String) : DialogRequest {
+        val answer = CompletableDeferred<Unit>()
+    }
+}
+
+/** Desktop (JVM) host: real files, native FileKit dialogs, Skia rasterization, Tao drag & drop. */
 internal object DesktopPlatform : PlatformServices {
 
     // ---- file system ------------------------------------------------------- #
@@ -75,57 +104,76 @@ internal object DesktopPlatform : PlatformServices {
 
     // ---- dialogs ------------------------------------------------------------ #
 
-    override suspend fun pickSvgFiles(startDir: String?): List<String> = onSwing {
-        val chooser = JFileChooser(startDir?.takeIf { File(it).isDirectory } ?: homeDir()).apply {
-            dialogTitle = "Open SVG files"
-            isMultiSelectionEnabled = true
-            fileFilter = FileNameExtensionFilter("SVG images (*.svg, *.svgz)", "svg", "svgz")
-        }
-        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-            chooser.selectedFiles.map { it.path }
-        } else {
-            emptyList()
-        }
+    override suspend fun pickSvgFiles(startDir: String?): List<String> {
+        val picked = FileKit.openFilePicker(
+            type = FileKitType.File(extensions = setOf("svg", "svgz")),
+            mode = FileKitMode.Multiple(),
+            directory = startDir.asDirectory(),
+        )
+        return picked?.map { it.absolutePath() }.orEmpty()
     }
 
-    override suspend fun pickSaveTarget(suggestedName: String, startDir: String?): String? = onSwing {
-        val chooser = JFileChooser(startDir?.takeIf { File(it).isDirectory } ?: homeDir()).apply {
-            dialogTitle = "Save optimized SVG as"
-            selectedFile = File(startDir ?: homeDir(), suggestedName)
-            fileFilter = FileNameExtensionFilter("SVG image (*.svg)", "svg")
+    override suspend fun pickSaveTarget(suggestedName: String, startDir: String?): String? {
+        val saved = FileKit.openFileSaver(
+            suggestedName = File(suggestedName).nameWithoutExtension,
+            extension = "svg",
+            directory = startDir.asDirectory(),
+        ) ?: return null
+        val path = saved.absolutePath()
+        return if (File(path).extension.isEmpty()) "$path.svg" else path
+    }
+
+    override suspend fun pickDirectory(startDir: String?): String? =
+        FileKit.openDirectoryPicker(directory = startDir.asDirectory())?.absolutePath()
+
+    /** FileKit wants an existing directory as its start point, or nothing. */
+    private fun String?.asDirectory(): PlatformFile? =
+        this?.takeIf { File(it).isDirectory }?.let { PlatformFile(File(it)) }
+
+    // ---- confirm / alert: bridged to a Compose dialog at the app root -------- #
+
+    private val dialogMutex = Mutex()
+
+    /** The dialog currently on screen, observed by [DesktopDialogHost]. One at a time. */
+    internal val currentDialog = MutableStateFlow<DialogRequest?>(null)
+
+    override suspend fun confirm(title: String, message: String): Boolean =
+        dialogMutex.withLock {
+            val request = DialogRequest.Confirm(title, message)
+            currentDialog.value = request
+            try {
+                request.answer.await()
+            } finally {
+                currentDialog.value = null
+            }
         }
-        if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) return@onSwing null
-        val chosen = chooser.selectedFile
-        if (chosen.extension.isEmpty()) File(chosen.path + ".svg").path else chosen.path
-    }
 
-    override suspend fun pickDirectory(startDir: String?): String? = onSwing {
-        val chooser = JFileChooser(startDir?.takeIf { File(it).isDirectory } ?: homeDir()).apply {
-            dialogTitle = "Choose output folder"
-            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+    override suspend fun alert(title: String, message: String): Unit =
+        dialogMutex.withLock {
+            val request = DialogRequest.Alert(title, message)
+            currentDialog.value = request
+            try {
+                request.answer.await()
+            } finally {
+                currentDialog.value = null
+            }
         }
-        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-            chooser.selectedFile.path
-        } else {
-            null
-        }
-    }
 
-    override suspend fun confirm(title: String, message: String): Boolean = onSwing {
-        JOptionPane.showConfirmDialog(
-            null, message, title, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
-        ) == JOptionPane.YES_OPTION
-    }
+    // ---- clipboard ----------------------------------------------------------- #
 
-    override suspend fun alert(title: String, message: String): Unit = onSwing {
-        JOptionPane.showMessageDialog(null, message, title, JOptionPane.ERROR_MESSAGE)
-    }
+    /** Captured from `LocalClipboardManager` at the app root; null until the first frame. */
+    @Volatile
+    private var clipboard: ClipboardManager? = null
 
-    // ---- misc ---------------------------------------------------------------- #
+    internal fun bindClipboard(manager: ClipboardManager) {
+        clipboard = manager
+    }
 
     override fun copyToClipboard(text: String) {
-        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
+        clipboard?.setText(AnnotatedString(text))
     }
+
+    // ---- rasterize ----------------------------------------------------------- #
 
     /**
      * Rasterize through Skia's SVG DOM — the same renderer Compose itself draws with, so the
@@ -182,29 +230,16 @@ internal object DesktopPlatform : PlatformServices {
         shouldStartDragAndDrop = { true },
         target = object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
-                val paths = event.droppedFilePaths() ?: return false
+                // Tao delivers the native drop as a payload of absolute paths, so there is no AWT
+                // DataFlavor round-trip and nothing that would boot the AWT toolkit.
+                val paths = (event.nativeEvent as? TaoDragAndDropPayload)?.files.orEmpty()
+                    .filter { it.substringAfterLast('.').lowercase() in setOf("svg", "svgz") }
                 if (paths.isEmpty()) return false
                 onFiles(paths)
                 return true
             }
         },
     )
-
-    @OptIn(ExperimentalComposeUiApi::class)
-    private fun DragAndDropEvent.droppedFilePaths(): List<String>? = try {
-        val transferable = awtTransferable
-        if (transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-            @Suppress("UNCHECKED_CAST")
-            (transferable.getTransferData(DataFlavor.javaFileListFlavor) as List<File>).map { it.path }
-        } else {
-            null
-        }
-    } catch (_: Exception) {
-        null
-    }
-
-    /** Swing dialogs must run on the EDT; the caller just awaits the answer. */
-    private suspend fun <T> onSwing(block: () -> T): T = withContext(Dispatchers.Main) { block() }
 }
 
 public actual fun platformServices(): PlatformServices = DesktopPlatform
