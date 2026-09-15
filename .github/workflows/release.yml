@@ -24,6 +24,9 @@ jobs:
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      GRAALVM_HOME: ""
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -64,8 +67,6 @@ jobs:
 
       - name: Build desktop artefacts
         shell: bash
-        env:
-          GRAALVM_HOME: ""
         run: |
           chmod +x ./gradlew
           APP_VERSION="1.0.0"

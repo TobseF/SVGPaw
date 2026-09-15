@@ -40,6 +40,7 @@ nucleus.application {
         toolchain {
             distribution.set(GraalvmDistribution.COMMUNITY)
             channel.set(GraalvmChannel.LTS)
+            version.set("25.0.2")
         }
         // Optimize the image for size rather than speed (GraalVM 25 supports -Os).
         optimization.set(NativeImageOptimization.SIZE)
