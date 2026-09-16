@@ -59,9 +59,10 @@ kotlin {
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.kotlinx.serializationJson)
         }
-        // svgo-kt is published from a Windows host as jvm/js/mingwX64/linuxX64 -- there is no
-        // wasmJs artifact, so the dependency sits in the source sets that can actually resolve it.
-        // Everything above it talks to `SvgoEngine`, whose non-JVM actuals are stubs for now.
+        // svgo-kt is published from a Windows host as jvm/js/mingwX64/linuxX64. wasmJs ships as a
+        // separate `svgo-kt-wasm-js` artifact instead of a variant of the same module, so it is
+        // declared explicitly in wasmJsMain below. Everything talks to `SvgoEngine`, whose
+        // remaining non-wired actuals (plain Kotlin/JS) are still stubs.
         jvmMain.dependencies {
             api(libs.svgo.kt)
             // Native OS file dialogs without AWT/Swing (open/save/directory), so the desktop build
@@ -83,6 +84,10 @@ kotlin {
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
+        }
+        wasmJsMain.dependencies {
+            implementation(libs.kotlinx.browser)
+            implementation(libs.svgo.kt.wasm)
         }
     }
 }

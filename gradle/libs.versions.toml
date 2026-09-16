@@ -15,10 +15,12 @@ jna = "5.18.1"
 junit = "4.13.2"
 kotlin = "2.4.10"
 kotlin-wrappers = "2026.8.4"
+kotlinx-browser = "0.5.0"
 kotlinx-coroutines = "1.11.0"
-kotlinx-serialization = "1.9.0"
+kotlinx-serialization = "1.10.0"
 nucleus = "2.5.15"
 svgoKt = "4.1.0"
+svgoKtWasm = "4.1.0.1"
 material3 = "1.12.0-alpha03"
 
 [libraries]
@@ -45,9 +47,11 @@ nucleus-decoratedWindowTao = { module = "dev.nucleusframework:nucleus.decorated-
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 svgo-kt = { module = "io.github.tobsef:svgo-kt", version.ref = "svgoKt" }
+svgo-kt-wasm = { module = "io.github.tobsef:svgo-kt-wasm-js", version.ref = "svgoKtWasm" }
 kotlinx-serializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinx-browser" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
