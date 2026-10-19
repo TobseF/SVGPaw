@@ -23,7 +23,7 @@ one documented here and the one that ships first.
 
 ---
 
-## Features
+## ⭐ Features
 
 - **Open many SVGs at once** — via the file picker, by dropping them onto the
   window, by dropping a whole folder, or as command-line arguments. `.svgz`
@@ -62,9 +62,9 @@ one documented here and the one that ships first.
 
 ---
 
-## Install
+## 📀 Install
 
-### Windows — winget
+### ⬇️ Windows — winget
 
 SVGPaw is in the [winget](https://learn.microsoft.com/windows/package-manager/)
 community repository, so on Windows 10/11 a single line installs it — and keeps
@@ -84,7 +84,7 @@ The package id is **`Tobse.SVGPaw`**
 it installs the MSI from the release below. Graphical winget front-ends such as
 [UniGetUI](https://www.marticliment.com/unigetui/) list it under the same name.
 
-### Direct downloads
+### 💾 Direct downloads
 
 Latest release: **[v4.1.0](https://github.com/TobseF/SVGPaw/releases/tag/v4.1.0)** —
 pick the file for your system:
@@ -112,7 +112,16 @@ packaged yet — run [from source](#from-source) there.
 
 Building these yourself is covered in [Building](#building).
 
-### In the browser (Wasm)
+### 🌍 In the browser (Wasm)
+
+**Try it without installing: [svgpaw.tobse.eu](http://svgpaw.tobse.eu)**
+
+> [!WARNING]
+> The hosted version is an **experimental Kotlin/Wasm build that is not adapted
+> for web use** — it is the desktop UI shipped as-is: no responsive or touch
+> layout, a multi-megabyte download before the first pixel, and slower
+> optimization than the native build. It is there to try SVGPaw out; for actual
+> work the **native desktop version is the recommended one**.
 
 The same UI also runs entirely client-side as a **Kotlin/Wasm** build — no
 install, no Node.js, nothing sent anywhere; files are read and saved locally
@@ -169,7 +178,7 @@ The same shared UI can be launched on the other targets:
 ./gradlew :webApp:jsBrowserDevelopmentRun            # Web (JS)
 ```
 
-## Usage
+## 📖 Usage
 
 1. Click **Open SVG files…**, or drop files onto the preview area.
 2. Pick a file in the list to work on it. The preview shows the optimized
@@ -192,7 +201,7 @@ The **Markup** view shows what will actually be written:
 
 ![Markup view](docs/screenshot-markup.png)
 
-### Keyboard shortcuts
+### ⌨️Keyboard shortcuts
 
 | Shortcut | Action |
 | --- | --- |
@@ -419,7 +428,7 @@ PNGs in [`docs/`](docs/). See
 
 ---
 
-## License
+## 📃 License
 
 Provided as-is for personal use. SVGO and SVGOMG are MIT-licensed projects by
 their respective authors; this is an unofficial, independent front-end.
