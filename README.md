@@ -64,17 +64,45 @@ one documented here and the one that ships first.
 
 ## Install
 
-### From a packaged build
+### Windows — winget
 
-The desktop app ships as a **GraalVM native image**, so it runs without any Java
-installation on the target machine. Each platform gets both a native installer
-and a portable archive you can just unzip and run:
+SVGPaw is in the [winget](https://learn.microsoft.com/windows/package-manager/)
+community repository, so on Windows 10/11 a single line installs it — and keeps
+it updatable:
 
-| Platform | Installer | Portable |
-| --- | --- | --- |
-| Windows | `svgpaw-<version>-win-x64.msi` | `svgpaw-<version>-win-x64.zip` |
-| Linux | `svgpaw_<version>_amd64.deb` | `svgpaw-<version>-linux-x64.zip` |
-| macOS | `svgpaw-<version>-mac-arm64.dmg` | — |
+```powershell
+winget install Tobse.SVGPaw
+```
+
+```powershell
+winget upgrade Tobse.SVGPaw     # pull the newest release
+winget uninstall Tobse.SVGPaw   # remove it again
+```
+
+The package id is **`Tobse.SVGPaw`**
+([manifest](https://github.com/microsoft/winget-pkgs/tree/master/manifests/t/Tobse/SVGPaw));
+it installs the MSI from the release below. Graphical winget front-ends such as
+[UniGetUI](https://www.marticliment.com/unigetui/) list it under the same name.
+
+### Direct downloads
+
+Latest release: **[v4.1.0](https://github.com/TobseF/SVGPaw/releases/tag/v4.1.0)** —
+pick the file for your system:
+
+| System | Download | What it is | Size |
+| --- | --- | --- | --- |
+| **Windows** 10/11 · x64 | [`svgpaw-4.1.0-win-x64.msi`](https://github.com/TobseF/SVGPaw/releases/download/v4.1.0/svgpaw-4.1.0-win-x64.msi) | Installer | 50 MB |
+| **Windows** 10/11 · x64 | [`svgpaw-4.1.0-win-x64.zip`](https://github.com/TobseF/SVGPaw/releases/download/v4.1.0/svgpaw-4.1.0-win-x64.zip) | Portable — unzip, run `SVGPaw.exe` | 60 MB |
+| **Linux** · x86-64, Debian/Ubuntu | [`svgpaw-4.1.0-linux-amd64.deb`](https://github.com/TobseF/SVGPaw/releases/download/v4.1.0/svgpaw-4.1.0-linux-amd64.deb) | Installer — `sudo apt install ./svgpaw-4.1.0-linux-amd64.deb` | 61 MB |
+| **Linux** · x86-64, any distro | [`svgpaw-4.1.0-linux-x64.zip`](https://github.com/TobseF/SVGPaw/releases/download/v4.1.0/svgpaw-4.1.0-linux-x64.zip) | Portable — unpack, run `SVGPaw` | 74 MB |
+| **macOS** · Apple Silicon (arm64) | [`svgpaw-4.1.0-mac-arm64.dmg`](https://github.com/TobseF/SVGPaw/releases/download/v4.1.0/svgpaw-4.1.0-mac-arm64.dmg) | Disk image | 71 MB |
+
+Older versions and release notes:
+**[all releases](https://github.com/TobseF/SVGPaw/releases)**.
+
+Every build is a **GraalVM native image**, so it runs without any Java
+installation on the target machine. macOS on Intel and Linux on ARM are not
+packaged yet — run [from source](#from-source) there.
 
 > [!NOTE]
 > **Signature warning on first run:**
@@ -331,7 +359,7 @@ and collects them in `dist/`:
 | `svgpaw-<ver>-win-x64.zip` | Portable Windows build — unzip and run `SVGPaw.exe`, no install |
 | `svgpaw-<ver>-win-x64.msi` | Windows installer |
 | `svgpaw-<ver>-linux-x64.zip` | Portable Linux build — unpack and run `SVGPaw`, no install |
-| `svgpaw_<ver>_amd64.deb` | Linux installer |
+| `svgpaw-<ver>-linux-amd64.deb` | Linux installer |
 
 A native image **cannot be cross-compiled**, so each OS is built on its own: the
 Windows artefacts natively on the host, the Linux ones inside a container from
